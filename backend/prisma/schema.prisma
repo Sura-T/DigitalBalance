@@ -1,0 +1,112 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Raw uploaded files metadata
+model UploadedFile {
+  id            String   @id @default(uuid())
+  filename      String
+  fileType      String   // "sales" or "bank"
+  month         String   // "YYYY-MM"
+  rowsRead      Int
+  durationMs    Int
+  uploadedAt    DateTime @default(now())
+  rawContent    String   @db.Text // JSON dump of raw parsed data
+  
+  @@index([month])
+}
+
+// Canonical sales data
+model Sale {
+  id              String   @id @default(uuid())
+  month           String   // "YYYY-MM"
+  date            DateTime
+  invoiceNumber   String
+  customer        String
+  product         String
+  quantity        Float
+  unitPriceNet    Float
+  vatRate         Float    // 0, 5, 7, or 14
+  netAmount       Float
+  vatAmount       Float
+  grossAmount     Float
+  paymentMethod   String   // "Cartão Multicaixa", "Numerário", etc.
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([month])
+  @@index([date])
+  @@index([paymentMethod])
+  @@index([customer])
+  @@index([product])
+}
+
+// Bank transactions
+model BankTransaction {
+  id            String   @id @default(uuid())
+  month         String   // "YYYY-MM"
+  date          DateTime
+  description   String
+  debit         Float?
+  credit        Float?
+  balance       Float
+  
+  // Classified fields
+  isTPASettlement Boolean @default(false)
+  isFee           Boolean @default(false)
+  isVATOnFee      Boolean @default(false)
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([month])
+  @@index([date])
+  @@index([isTPASettlement])
+  @@index([isFee])
+}
+
+// Daily reconciliation records
+model DailyReconciliation {
+  id              String   @id @default(uuid())
+  month           String   // "YYYY-MM"
+  date            DateTime
+  salesCard       Float    // Card sales from Excel
+  bankTPA         Float    // TPA credits from bank (may be T+1)
+  fees            Float    // Comissão + IVA
+  delta           Float    // salesCard - bankTPA - fees
+  deltaPercent    Float    // (delta / salesCard) * 100
+  pass            Boolean  // abs(deltaPercent) <= 5
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([month, date])
+  @@index([month])
+  @@index([date])
+}
+
+// Chat sessions
+model ChatSession {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  messages  ChatMessage[]
+}
+
+// Chat messages
+model ChatMessage {
+  id          String      @id @default(uuid())
+  sessionId   String
+  session     ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role        String      // "user" or "assistant"
+  content     String      @db.Text
+  timestamp   DateTime    @default(now())
+  
+  @@index([sessionId])
+}
+

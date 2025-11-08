@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: digitalbalance-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-financeuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-financepass}
+      POSTGRES_DB: ${POSTGRES_DB:-digitalbalance}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U financeuser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: digitalbalance-api
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-financeuser}:${POSTGRES_PASSWORD:-financepass}@db:5432/${POSTGRES_DB:-digitalbalance}
+      PORT: 3001
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-3.5-turbo}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
+
+  fe:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: digitalbalance-fe
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+

@@ -1,0 +1,20 @@
+{
+  "name": "digital-balance",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:fe\"",
+    "dev:api": "cd backend && npm run dev",
+    "dev:fe": "cd frontend && npm run dev",
+    "build": "npm run build:api && npm run build:fe",
+    "build:api": "cd backend && npm run build",
+    "build:fe": "cd frontend && npm run build",
+    "test": "cd backend && npm test",
+    "docker:up": "docker-compose up --build",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+
